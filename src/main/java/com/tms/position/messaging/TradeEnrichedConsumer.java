@@ -36,7 +36,7 @@ public class TradeEnrichedConsumer {
         String correlationId = (String) tradeEvent.get("correlationId");
 
         try {
-            MDC.put(CorrelationIdFilter.CORRELATION_ID_KEY, correlationId);
+            MDC.put(CorrelationIdFilter.CORRELATION_ID_MDC_KEY, correlationId);
             log.info("Received enriched trade for position update: tradeId={}, partition={}, offset={}",
                 tradeId, record.partition(), record.offset());
 
@@ -49,7 +49,7 @@ public class TradeEnrichedConsumer {
             log.error("Failed to update position for trade: tradeId={}", tradeId, e);
             throw e;
         } finally {
-            MDC.remove(CorrelationIdFilter.CORRELATION_ID_KEY);
+            MDC.remove(CorrelationIdFilter.CORRELATION_ID_MDC_KEY);
         }
     }
 
