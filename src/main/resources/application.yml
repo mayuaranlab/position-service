@@ -1,0 +1,157 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: position-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: true
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Kafka Configuration
+  kafka:
+    consumer:
+      group-id: position-service-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    listener:
+      ack-mode: manual
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      kafka-consumer:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+  retry:
+    instances:
+      kafka-consumer:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+
+---
+# Local Profile
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=TradeManagement;encrypt=false;trustServerCertificate=true
+    username: sa
+    password: YourStrong@Password123
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    com.tms: DEBUG
+    org.apache.kafka: INFO
+
+---
+# Docker Profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: jdbc:sqlserver://mssql:1433;databaseName=TradeManagement;encrypt=false;trustServerCertificate=true
+    username: sa
+    password: YourStrong@Password123
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  kafka:
+    bootstrap-servers: kafka:29092
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+logging:
+  level:
+    com.tms: INFO
+    org.apache.kafka: WARN
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+logging:
+  level:
+    com.tms: INFO
+    org.apache.kafka: WARN
